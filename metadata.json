@@ -1,0 +1,6 @@
+{
+  "name": "DashNit Artisan Studio & Operations",
+  "description": "Production-grade artisanal operations, crafting queue Kanban, catalog & inventory supervisor, logistics hub, and architecture for DashNit Crochet & Candle.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
