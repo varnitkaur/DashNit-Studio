@@ -249,6 +249,26 @@ gantt
 
 ---
 
+### Phase 6: Monorepo Decoupling, Role-Based Portals & Live MongoDB Cart Activity Engine
+**Status:** `Completed`  
+**Milestone Target:** Independent Frontend/Backend Subfolders, Dual-Portal RBAC, Enriched Product Catalog & Real-Time Cart Tracking  
+**Completed On:** 2026-09-09 ([Changelog v1.6.0](file:///c:/Users/ASUS/DashNit-Studio/changelog.md))  
+
+#### 1. Objectives & Architectural Decoupling
+- Strict monorepo folder separation: `frontend/` (Vite, React 19, Tailwind) and `backend/` (Express, Mongoose, Gemini GenAI).
+- Complete role-based authentication separating **Customer Shopping Portal** and **Artisan Staff Atelier** (`customer`, `atelier_manager`, `artisan_crafter`, `qc_packaging`, `logistics_dispatcher`).
+- Enriched Product Catalog with fragrance pyramids (top, heart, base), burn times, dimensions, materials, care instructions, and PDP modal.
+- Real-time MongoDB cart synchronization (`/api/v1/cart/:userId`) with live admin oversight via `/api/v1/admin/active-carts`.
+- End-to-end order placement automatically feeding customer order history, admin logistics, and artisan Kanban cards.
+
+#### 2. Acceptance Criteria Verified
+- [x] `frontend/` and `backend/` have independent `package.json` configurations and compile cleanly (`npm run lint` & `npm run build` Code 0).
+- [x] Dual-portal `AuthModal` supports customer sign-in and staff role presets.
+- [x] Adding items to cart immediately reflects in `/api/v1/cart/:userId` and is visible to the Atelier Manager in real time.
+- [x] Placing an order empties the cart and auto-generates a Craft Card on the Kanban floor board.
+
+---
+
 ## Technical Debt & Risk Management
 
 | Risk / Debt Area | Severity | Impact | Mitigation Strategy | Target Phase |

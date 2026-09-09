@@ -7,6 +7,10 @@ import { OrdersLogistics } from './components/OrdersLogistics';
 import { AnalyticsRevenue } from './components/AnalyticsRevenue';
 import { ArchitectureView } from './components/ArchitectureView';
 import { CustomOrderStudio } from './components/CustomOrderStudio';
+import { CustomerStorefront } from './components/CustomerStorefront';
+import { CartDrawer } from './components/CartDrawer';
+import { AdminCartActivityView } from './components/AdminCartActivityView';
+import { AuthModal } from './components/AuthModal';
 import { AIConciergeModal } from './components/AIConciergeModal';
 import { ScannerWorkbenchModal } from './components/ScannerWorkbenchModal';
 import { GeminiVisionQCModal } from './components/GeminiVisionQCModal';
@@ -25,11 +29,23 @@ import {
   mockCatalogProducts,
   mockRawMaterials,
   mockLogisticsOrders,
+  seedUsers,
+  initialCarts,
 } from './data/mockData';
-import { ActiveNavTab, CraftCard, CraftStage, LogisticsOrder, RawMaterial, UserRole, AtelierHub } from './types';
+import {
+  ActiveNavTab,
+  CraftCard,
+  CraftStage,
+  LogisticsOrder,
+  RawMaterial,
+  UserRole,
+  AtelierHub,
+  UserProfile,
+  CartItem,
+} from './types';
 import { getStoredState, saveStoredState } from './utils/storage';
 import { useBarcodeScanner } from './utils/scannerListener';
-import { CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, ShoppingBag, ShieldCheck, ArrowRight, Clock } from 'lucide-react';
 import {
   apiFetchCraftCards,
   apiCreateCraftCard,
@@ -40,15 +56,33 @@ import {
   apiFetchRawMaterials,
   apiReorderRawMaterial,
   apiFetchLogisticsOrders,
+  apiCreateOrder,
+  apiFetchCart,
+  apiSaveCart,
+  apiEmptyCart,
 } from './services/apiService';
 
 export function App() {
-  const [activeTab, setActiveTab] = useState<ActiveNavTab>('crafting-queue');
+  // Current logged in user (Customer vs Staff)
+  const [currentUser, setCurrentUser] = useState<UserProfile>(() =>
+    getStoredState<UserProfile>('current_user', seedUsers[0])
+  );
+
+  const [activeTab, setActiveTab] = useState<ActiveNavTab>(() =>
+    currentUser.role === 'customer' ? 'customer-storefront' : 'crafting-queue'
+  );
   const [searchQuery, setSearchQuery] = useState('');
-  const [currentRole, setCurrentRole] = useState<UserRole>('atelier_manager');
+  const [currentRole, setCurrentRole] = useState<UserRole>(currentUser.role);
   const [currentHub, setCurrentHub] = useState<AtelierHub>(() =>
     getStoredState<AtelierHub>('current_hub', 'jaipur_02')
   );
+
+  // Cart State (Synced with MongoDB)
+  const [cartItems, setCartItems] = useState<CartItem[]>(() =>
+    getStoredState<CartItem[]>('cart_items', initialCarts[0]?.items || [])
+  );
+  const [showCartDrawer, setShowCartDrawer] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   // Persistent main data states
   const [craftCards, setCraftCards] = useState<CraftCard[]>(() =>
@@ -65,6 +99,15 @@ export function App() {
   );
 
   // Sync state to local storage
+  useEffect(() => {
+    saveStoredState('current_user', currentUser);
+    setCurrentRole(currentUser.role);
+  }, [currentUser]);
+
+  useEffect(() => {
+    saveStoredState('cart_items', cartItems);
+  }, [cartItems]);
+
   useEffect(() => {
     saveStoredState('craft_cards', craftCards);
   }, [craftCards]);
@@ -99,7 +142,12 @@ export function App() {
     apiFetchLogisticsOrders().then((remoteOrders) => {
       if (remoteOrders && remoteOrders.length > 0) setLogisticsOrders(remoteOrders);
     });
-  }, []);
+    apiFetchCart(currentUser.id).then((remoteCart) => {
+      if (remoteCart && remoteCart.items) {
+        setCartItems(remoteCart.items);
+      }
+    });
+  }, [currentUser.id]);
 
   // Modals state
   const [inspectCard, setInspectCard] = useState<CraftCard | null>(null);
@@ -121,6 +169,11 @@ export function App() {
     setShowScannerWorkbench(true);
     triggerToast(`Hardware Laser Scanner: Detected barcode "${scannedCode}"`);
   });
+
+  const triggerToast = (msg: string) => {
+    setGlobalToast(msg);
+    setTimeout(() => setGlobalToast(null), 3500);
+  };
 
   const handlePassQC = (cardId: string) => {
     const qcPayload = {
@@ -152,11 +205,6 @@ export function App() {
     apiUpdateCardDetails(cardId, qcPayload);
   };
 
-  const triggerToast = (msg: string) => {
-    setGlobalToast(msg);
-    setTimeout(() => setGlobalToast(null), 3500);
-  };
-
   // Stage change handler
   const handleUpdateCardStage = (cardId: string, newStage: CraftStage) => {
     setCraftCards((prev) =>
@@ -170,10 +218,9 @@ export function App() {
     setCraftCards((prev) => [newCard, ...prev]);
     apiCreateCraftCard(newCard);
     triggerToast(`New commission ${newCard.id} successfully queued into Jaipur Atelier!`);
-    // Optional: Switch to crafting queue to show the live update
-    setTimeout(() => {
-      setActiveTab('crafting-queue');
-    }, 1200);
+    if (currentUser.role !== 'customer') {
+      setTimeout(() => setActiveTab('crafting-queue'), 1200);
+    }
   };
 
   // Purchase Order submission handler
@@ -225,9 +272,92 @@ export function App() {
     }, 800);
   };
 
+  // Cart Handlers ("Kisi ne add to cart kiya to uska data dikhna chahiye")
+  const handleAddToCart = (item: CartItem) => {
+    const updated = [...cartItems];
+    const existingIndex = updated.findIndex(
+      (i) => i.sku === item.sku && i.customDetails === item.customDetails
+    );
+
+    if (existingIndex >= 0) {
+      updated[existingIndex].quantity += item.quantity;
+    } else {
+      updated.push(item);
+    }
+
+    setCartItems(updated);
+    saveStoredState('cart_items', updated);
+    apiSaveCart(
+      currentUser.id,
+      updated,
+      currentUser.name,
+      currentUser.phone,
+      currentUser.email
+    );
+    triggerToast(`Added "${item.title}" to cart! (Tracked in MongoDB)`);
+  };
+
+  const handleUpdateCartQty = (id: string, delta: number) => {
+    const updated = cartItems
+      .map((i) => (i.id === id ? { ...i, quantity: Math.max(1, i.quantity + delta) } : i))
+      .filter((i) => i.quantity > 0);
+
+    setCartItems(updated);
+    saveStoredState('cart_items', updated);
+    apiSaveCart(
+      currentUser.id,
+      updated,
+      currentUser.name,
+      currentUser.phone,
+      currentUser.email
+    );
+  };
+
+  const handleRemoveCartItem = (id: string) => {
+    const updated = cartItems.filter((i) => i.id !== id);
+    setCartItems(updated);
+    saveStoredState('cart_items', updated);
+    apiSaveCart(
+      currentUser.id,
+      updated,
+      currentUser.name,
+      currentUser.phone,
+      currentUser.email
+    );
+    triggerToast('Item removed from cart');
+  };
+
+  const handleOrderPlaced = (newOrder: LogisticsOrder, newCard: CraftCard) => {
+    setLogisticsOrders((prev) => [newOrder, ...prev]);
+    apiCreateOrder(newOrder);
+
+    setCraftCards((prev) => [newCard, ...prev]);
+    apiCreateCraftCard(newCard);
+
+    setCartItems([]);
+    saveStoredState('cart_items', []);
+    apiEmptyCart(currentUser.id);
+    triggerToast(`Order #${newOrder.orderId} placed & queued to Jaipur Atelier!`);
+  };
+
+  const handleLoginSuccess = (user: UserProfile) => {
+    setCurrentUser(user);
+    if (user.role === 'customer') {
+      setActiveTab('customer-storefront');
+      triggerToast(`Welcome back, ${user.name}! (Customer Storefront)`);
+    } else {
+      setActiveTab('crafting-queue');
+      triggerToast(`Signed in as ${user.name} (${user.role.replace('_', ' ').toUpperCase()})`);
+    }
+  };
+
   const lowStockCount = rawMaterials.filter(
     (m) => m.status === 'low' || m.status === 'critical'
   ).length;
+
+  const totalCartUnits = cartItems.reduce((sum, i) => sum + i.quantity, 0);
+
+  const isCustomerPortal = currentUser.role === 'customer';
 
   return (
     <div className="min-h-screen bg-[#FAF7F2] text-[#2D221E] flex flex-col font-['Plus_Jakarta_Sans']">
@@ -250,7 +380,10 @@ export function App() {
         onOpenAIConcierge={() => setShowAIConcierge(true)}
         onOpenScanner={() => setShowScannerWorkbench(true)}
         currentRole={currentRole}
-        onRoleChange={setCurrentRole}
+        onRoleChange={(r) => {
+          setCurrentRole(r);
+          setCurrentUser((prev) => ({ ...prev, role: r }));
+        }}
         currentHub={currentHub}
         onHubChange={(hub) => {
           setCurrentHub(hub);
@@ -258,24 +391,52 @@ export function App() {
         }}
         onOpenCorporateGifting={() => setShowCorporateModal(true)}
         onOpenCustomerTracking={() => setShowCustomerTrackModal(true)}
+        currentUser={currentUser}
+        onOpenAuthModal={() => setShowAuthModal(true)}
+        onOpenCartDrawer={() => setShowCartDrawer(true)}
+        cartCount={totalCartUnits}
       />
 
       <div className="flex flex-1 pt-16">
-        {/* Fixed Left Sidebar */}
-        <Sidebar
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-          craftingActiveCount={craftCards.length}
-          lowStockCount={lowStockCount}
-          readyOrdersCount={logisticsOrders.filter((o) => o.status === 'ready_for_packing' || o.status === 'manifested').length}
-          onOpenDocs={() => setShowDocs(true)}
-          onOpenWageLedger={() => setShowWageLedgerModal(true)}
-          onOpenCorporateGifting={() => setShowCorporateModal(true)}
-          onOpenCustomerTracking={() => setShowCustomerTrackModal(true)}
-        />
+        {/* Left Sidebar (Only visible in Staff / Admin mode) */}
+        {!isCustomerPortal && (
+          <Sidebar
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            craftingActiveCount={craftCards.length}
+            lowStockCount={lowStockCount}
+            readyOrdersCount={
+              logisticsOrders.filter(
+                (o) => o.status === 'ready_for_packing' || o.status === 'manifested'
+              ).length
+            }
+            onOpenDocs={() => setShowDocs(true)}
+            onOpenWageLedger={() => setShowWageLedgerModal(true)}
+            onOpenCorporateGifting={() => setShowCorporateModal(true)}
+            onOpenCustomerTracking={() => setShowCustomerTrackModal(true)}
+          />
+        )}
 
         {/* Main Content Viewport */}
-        <main className="flex-1 ml-64 p-6 lg:p-8 max-w-[1600px] overflow-x-hidden">
+        <main
+          className={`flex-1 p-6 lg:p-8 overflow-x-hidden ${
+            isCustomerPortal ? 'max-w-7xl mx-auto w-full' : 'ml-64 max-w-[1600px]'
+          }`}
+        >
+          {/* Customer Storefront View */}
+          {activeTab === 'customer-storefront' && (
+            <CustomerStorefront
+              products={products}
+              onAddToCart={handleAddToCart}
+              onOpenCustomStudio={() => setActiveTab('custom-studio')}
+              onOpenCartDrawer={() => setShowCartDrawer(true)}
+            />
+          )}
+
+          {/* Admin Live Customer Cart Activity Monitor */}
+          {activeTab === 'admin-cart-activity' && <AdminCartActivityView />}
+
+          {/* Staff Crafting Queue Kanban Board */}
           {activeTab === 'crafting-queue' && (
             <CraftingBoard
               cards={craftCards}
@@ -289,6 +450,7 @@ export function App() {
             />
           )}
 
+          {/* Staff Catalog & Inventory Supervisor */}
           {activeTab === 'catalog-and-inventory' && (
             <CatalogInventory
               products={products}
@@ -304,12 +466,15 @@ export function App() {
             />
           )}
 
+          {/* Staff Orders & Logistics Hub */}
           {activeTab === 'orders-and-logistics' && (
             <OrdersLogistics
               orders={logisticsOrders}
               onOpenLabelModal={(order) => setSelectedOrderForLabel(order)}
               onOpenGiftNoteModal={(order) => {
-                triggerToast(`Printing calligraphy wax-sealed gift note for ${order.customerName}...`);
+                triggerToast(
+                  `Printing calligraphy wax-sealed gift note for ${order.customerName}...`
+                );
               }}
               onOpenBatchManifestModal={() => {
                 triggerToast('Generating batch 3PL manifest & courier handover sheet (PDF)...');
@@ -317,15 +482,38 @@ export function App() {
             />
           )}
 
+          {/* Staff Financial Analytics */}
           {activeTab === 'analytics-and-revenue' && <AnalyticsRevenue />}
 
+          {/* Staff Architecture Diagram */}
           {activeTab === 'architecture' && <ArchitectureView />}
 
+          {/* Custom Order Commission Studio */}
           {activeTab === 'custom-studio' && (
             <CustomOrderStudio onCommissionCreated={handleCommissionCreated} />
           )}
         </main>
       </div>
+
+      {/* Cart Drawer */}
+      <CartDrawer
+        isOpen={showCartDrawer}
+        onClose={() => setShowCartDrawer(false)}
+        cartItems={cartItems}
+        currentUser={currentUser}
+        onUpdateQuantity={handleUpdateCartQty}
+        onRemoveItem={handleRemoveCartItem}
+        onOrderPlaced={handleOrderPlaced}
+      />
+
+      {/* Auth Modal (Admin vs Customer Login) */}
+      {showAuthModal && (
+        <AuthModal
+          onClose={() => setShowAuthModal(false)}
+          onLoginSuccess={handleLoginSuccess}
+          currentRole={currentRole}
+        />
+      )}
 
       {/* Modals */}
       {inspectCard && (
@@ -360,62 +548,51 @@ export function App() {
 
       {showDocs && <DocsModal onClose={() => setShowDocs(false)} />}
 
-      {/* Gemini AI Artisan Concierge Modal */}
       {showAIConcierge && (
         <AIConciergeModal
           onClose={() => setShowAIConcierge(false)}
-          onCommissionCreated={handleCommissionCreated}
+          onInjectCommission={handleCommissionCreated}
         />
       )}
 
-      {/* Atelier Barcode & QR Scanner Workbench */}
       {showScannerWorkbench && (
         <ScannerWorkbenchModal
-          cards={craftCards}
           onClose={() => setShowScannerWorkbench(false)}
+          cards={craftCards}
           onUpdateStage={handleUpdateCardStage}
-          onInspectCard={(card) => setInspectCard(card)}
-          onTriggerToast={triggerToast}
+          onPassQC={handlePassQC}
         />
       )}
 
-      {/* Gemini Vision Automated QC Surface Auditor */}
       {visionQCCard && (
         <GeminiVisionQCModal
           card={visionQCCard}
           onClose={() => setVisionQCCard(null)}
           onPassQC={handlePassQC}
-          onTriggerToast={triggerToast}
         />
       )}
 
-      {/* Phase 5: Customer Live Tracking Portal */}
       {showCustomerTrackModal && (
         <CustomerTrackingPortalModal
+          orders={logisticsOrders}
           cards={craftCards}
-          logisticsOrders={logisticsOrders}
           onClose={() => setShowCustomerTrackModal(false)}
         />
       )}
 
-      {/* Phase 5: B2B Corporate Gifting Engine */}
       {showCorporateModal && (
         <CorporateGiftingModal
           onClose={() => setShowCorporateModal(false)}
           onQueueCorporateBatch={handleQueueCorporateBatch}
-          onTriggerToast={triggerToast}
         />
       )}
 
-      {/* Phase 5: Artisan Piece-Rate Wage & Payroll Ledger */}
       {showWageLedgerModal && (
-        <ArtisanWageLedgerModal
-          onClose={() => setShowWageLedgerModal(false)}
-          onTriggerToast={triggerToast}
-        />
+        <ArtisanWageLedgerModal onClose={() => setShowWageLedgerModal(false)} />
       )}
     </div>
   );
 }
 
 export default App;
+

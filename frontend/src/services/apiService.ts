@@ -1,6 +1,138 @@
-import { CraftCard, CraftStage, CatalogProduct, RawMaterial, LogisticsOrder } from '../types';
+import {
+  CraftCard,
+  CraftStage,
+  CatalogProduct,
+  RawMaterial,
+  LogisticsOrder,
+  UserProfile,
+  CartItem,
+  UserCart,
+} from '../types';
 
 const API_BASE = '/api/v1';
+
+// Auth Services (Role-Based: Customer vs Admin)
+export async function apiLogin(credentials: {
+  email?: string;
+  role?: string;
+  phone?: string;
+}): Promise<UserProfile | null> {
+  try {
+    const res = await fetch(`${API_BASE}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(credentials),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && data.data) {
+        return data.data;
+      }
+    }
+  } catch (err) {
+    console.warn('[API] Auth login error, falling back:', err);
+  }
+  return null;
+}
+
+export async function apiRegister(payload: {
+  name: string;
+  email: string;
+  phone?: string;
+  role?: string;
+}): Promise<UserProfile | null> {
+  try {
+    const res = await fetch(`${API_BASE}/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && data.data) {
+        return data.data;
+      }
+    }
+  } catch (err) {
+    console.warn('[API] Auth register error:', err);
+  }
+  return null;
+}
+
+// Cart Tracking Services ("Kisi ne add to cart kiya to uska data dikhna chahiye")
+export async function apiFetchCart(userId: string): Promise<UserCart | null> {
+  try {
+    const res = await fetch(`${API_BASE}/cart/${encodeURIComponent(userId)}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && data.data) {
+        return data.data;
+      }
+    }
+  } catch (err) {
+    console.warn('[API] Could not fetch user cart:', err);
+  }
+  return null;
+}
+
+export async function apiSaveCart(
+  userId: string,
+  items: CartItem[],
+  customerName?: string,
+  customerPhone?: string,
+  customerEmail?: string
+): Promise<void> {
+  try {
+    await fetch(`${API_BASE}/cart/${encodeURIComponent(userId)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items, customerName, customerPhone, customerEmail }),
+    });
+  } catch (err) {
+    console.warn('[API] Could not persist cart update:', err);
+  }
+}
+
+export async function apiEmptyCart(userId: string): Promise<void> {
+  try {
+    await fetch(`${API_BASE}/cart/${encodeURIComponent(userId)}`, {
+      method: 'DELETE',
+    });
+  } catch (err) {
+    console.warn('[API] Could not empty cart:', err);
+  }
+}
+
+export async function apiFetchActiveCarts(): Promise<UserCart[]> {
+  try {
+    const res = await fetch(`${API_BASE}/admin/active-carts`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && Array.isArray(data.data)) {
+        return data.data;
+      }
+    }
+  } catch (err) {
+    console.warn('[API] Could not fetch active carts for admin:', err);
+  }
+  return [];
+}
+
+// Customer Orders
+export async function apiFetchCustomerOrders(customerName: string): Promise<LogisticsOrder[]> {
+  try {
+    const res = await fetch(`${API_BASE}/orders/customer/${encodeURIComponent(customerName)}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && Array.isArray(data.data)) {
+        return data.data;
+      }
+    }
+  } catch (err) {
+    console.warn('[API] Could not fetch customer orders:', err);
+  }
+  return [];
+}
 
 // Craft Cards
 export async function apiFetchCraftCards(): Promise<CraftCard[] | null> {
@@ -124,4 +256,16 @@ export async function apiFetchLogisticsOrders(): Promise<LogisticsOrder[] | null
     console.warn('[API] Could not fetch logistics orders from backend, using local fallback:', err);
   }
   return null;
+}
+
+export async function apiCreateOrder(order: LogisticsOrder): Promise<void> {
+  try {
+    await fetch(`${API_BASE}/orders`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(order),
+    });
+  } catch (err) {
+    console.warn('[API] Could not persist new order:', err);
+  }
 }

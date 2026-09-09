@@ -3,11 +3,15 @@ import { CraftCardModel } from './models/CraftCard';
 import { ProductModel } from './models/Product';
 import { RawMaterialModel } from './models/RawMaterial';
 import { LogisticsOrderModel } from './models/LogisticsOrder';
+import { UserModel } from './models/User';
+import { CartModel } from './models/Cart';
 import {
   initialCraftCards,
   mockCatalogProducts,
   mockRawMaterials,
   mockLogisticsOrders,
+  seedUsers,
+  initialCarts,
 } from './seedData';
 
 export async function connectDatabase(): Promise<void> {
@@ -41,6 +45,8 @@ async function seedDatabaseIfEmpty(): Promise<void> {
         ProductModel.insertMany(mockCatalogProducts),
         RawMaterialModel.insertMany(mockRawMaterials),
         LogisticsOrderModel.insertMany(mockLogisticsOrders),
+        UserModel.insertMany(seedUsers),
+        CartModel.insertMany(initialCarts),
       ]);
       console.log('[MongoDB] Auto-seeding completed successfully!');
     }

@@ -2,6 +2,45 @@ export type CraftStage = 'new_placed' | 'in_crafting' | 'qc_packaging' | 'manife
 
 export type CraftType = 'candle' | 'crochet' | 'gift_hamper' | 'wax_melt';
 
+export type UserRole =
+  | 'customer'
+  | 'atelier_manager'
+  | 'artisan_crafter'
+  | 'qc_packaging'
+  | 'logistics_dispatcher';
+
+export interface UserProfile {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  role: UserRole;
+  avatar?: string;
+  token?: string;
+}
+
+export interface CartItem {
+  id: string;
+  productId: string;
+  sku: string;
+  title: string;
+  price: number;
+  quantity: number;
+  image: string;
+  category: string;
+  fulfillmentMode: 'ready_to_ship' | 'made_to_order' | 'hybrid';
+  customDetails?: string;
+}
+
+export interface UserCart {
+  userId: string;
+  customerName: string;
+  customerPhone?: string;
+  items: CartItem[];
+  subtotal: number;
+  updatedAt: string;
+}
+
 export interface CraftCard {
   id: string; // e.g. 'DN-1048'
   stage: CraftStage;
@@ -45,18 +84,32 @@ export interface CatalogProduct {
   sku: string;
   title: string;
   subtitle: string;
-  category: 'candle' | 'crochet' | 'gift_box';
+  category: 'candle' | 'crochet' | 'gift_box' | 'wax_melt';
   image: string;
+  galleryImages?: string[];
+  description?: string;
+  fragranceNotes?: {
+    top: string;
+    middle: string;
+    base: string;
+  };
+  burnTimeHours?: number;
+  dimensions?: string;
+  materials?: string;
+  careInstructions?: string;
   craftMedium: string;
   fulfillmentMode: 'ready_to_ship' | 'made_to_order' | 'hybrid';
   stockCount?: number;
   crafterAssigned?: string;
   leadTimeBuffer: string;
   mrp: number;
+  salePrice?: number;
   gstRate: string;
   minReserve?: number;
   criticalLow?: boolean;
   statusText?: string;
+  rating?: number;
+  reviewsCount?: number;
 }
 
 export interface RawMaterial {

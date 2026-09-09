@@ -14,8 +14,13 @@ import {
   MapPin,
   Briefcase,
   Globe,
+  ShoppingBag,
+  LogIn,
+  Store,
+  Activity,
+  ChevronDown,
 } from 'lucide-react';
-import { ActiveNavTab, UserRole, AtelierHub } from '../types';
+import { ActiveNavTab, UserRole, AtelierHub, UserProfile } from '../types';
 
 interface HeaderProps {
   searchQuery: string;
@@ -32,6 +37,10 @@ interface HeaderProps {
   onRoleChange?: (role: UserRole) => void;
   currentHub?: AtelierHub;
   onHubChange?: (hub: AtelierHub) => void;
+  currentUser?: UserProfile;
+  onOpenAuthModal?: () => void;
+  onOpenCartDrawer?: () => void;
+  cartCount?: number;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -49,6 +58,10 @@ export const Header: React.FC<HeaderProps> = ({
   onRoleChange,
   currentHub = 'jaipur_02',
   onHubChange,
+  currentUser,
+  onOpenAuthModal,
+  onOpenCartDrawer,
+  cartCount = 0,
 }) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showRoleMenu, setShowRoleMenu] = useState(false);
@@ -91,6 +104,12 @@ export const Header: React.FC<HeaderProps> = ({
   ];
 
   const roleConfig: Record<UserRole, { title: string; subtitle: string; badge: string; color: string }> = {
+    customer: {
+      title: 'Customer Client',
+      subtitle: 'Boutique Storefront & Cart',
+      badge: 'Shopper',
+      color: '#4A3E39',
+    },
     atelier_manager: {
       title: 'Nita Sharma',
       subtitle: 'Atelier Director (Full Access)',
@@ -320,6 +339,51 @@ export const Header: React.FC<HeaderProps> = ({
             <span>SaaS Arch</span>
           </button>
 
+          {/* Shopping Cart Drawer Button */}
+          {onOpenCartDrawer && (
+            <button
+              onClick={onOpenCartDrawer}
+              className="relative flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-[#9d3e1d] hover:bg-[#853417] text-white transition-all shadow-md active:scale-95"
+              title="Open Shopping Cart"
+            >
+              <ShoppingBag className="w-3.5 h-3.5 text-[#F4D35E]" />
+              <span>Cart</span>
+              {cartCount > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full bg-white text-[#9d3e1d] text-[10px] font-extrabold">
+                  {cartCount}
+                </span>
+              )}
+            </button>
+          )}
+
+          {/* Customer Storefront / Live Carts Tab */}
+          {currentUser?.role === 'customer' ? (
+            <button
+              onClick={() => setActiveTab('customer-storefront')}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                activeTab === 'customer-storefront'
+                  ? 'bg-[#2D221E] text-white shadow-sm'
+                  : 'bg-[#F3EDE4] text-[#2D221E] hover:bg-[#EDE5D8]'
+              }`}
+            >
+              <Store className="w-3.5 h-3.5 text-[#9d3e1d]" />
+              <span>Catalog</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => setActiveTab('admin-cart-activity')}
+              className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                activeTab === 'admin-cart-activity'
+                  ? 'bg-[#9d3e1d] text-white shadow-sm'
+                  : 'bg-[#FEF5EA] text-[#A35C00] hover:bg-[#FDEEDC] border border-[#F8CCA0]'
+              }`}
+              title="View Live Customer Carts in MongoDB"
+            >
+              <Activity className="w-3.5 h-3.5 text-[#9d3e1d]" />
+              <span>Live Carts</span>
+            </button>
+          )}
+
           {/* Notification Button */}
           <div className="relative">
             <button
@@ -398,35 +462,36 @@ export const Header: React.FC<HeaderProps> = ({
 
           <div className="h-6 w-px bg-[#E5DBD0] hidden sm:block"></div>
 
-          {/* Interactive RBAC Persona Switcher */}
-          <div className="relative">
+          {/* User Profile & Auth Modal Trigger */}
+          <div className="relative flex items-center">
             <button
-              onClick={() => setShowRoleMenu(!showRoleMenu)}
-              className="flex items-center gap-2.5 pl-1 p-1 rounded-2xl hover:bg-[#F3EDE4] transition-all text-left"
-              title="Click to switch atelier role (RBAC)"
+              onClick={() => onOpenAuthModal?.()}
+              className="flex items-center gap-2 px-2.5 py-1 rounded-2xl border border-[#2D221E]/15 bg-white hover:border-[#9d3e1d]/50 hover:bg-[#9d3e1d]/5 transition-all text-left group"
+              title="Click to Switch Portal (Admin vs Customer Login)"
             >
-              <div className="flex flex-col text-right hidden md:flex">
-                <div className="flex items-center justify-end gap-1.5">
-                  <span className="text-xs font-bold text-[#2D221E] leading-tight font-['Plus_Jakarta_Sans']">
-                    {activeRoleInfo.title}
-                  </span>
-                  <span
-                    className="text-[9px] font-extrabold uppercase px-1.5 py-0.2 rounded-md text-white shadow-2xs"
-                    style={{ backgroundColor: activeRoleInfo.color }}
-                  >
-                    {activeRoleInfo.badge}
-                  </span>
-                </div>
-                <span className="text-[10px] text-[#6B5851] leading-tight font-['Plus_Jakarta_Sans']">
-                  {activeRoleInfo.subtitle}
+              <img
+                alt={currentUser?.name || activeRoleInfo.title}
+                className="w-7 h-7 rounded-full object-cover border border-[#9d3e1d]/40"
+                src={currentUser?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80'}
+              />
+              <div className="hidden sm:flex flex-col">
+                <span className="text-xs font-bold text-[#2D221E] leading-tight group-hover:text-[#9d3e1d]">
+                  {currentUser?.name || activeRoleInfo.title}
+                </span>
+                <span className="text-[10px] text-[#9d3e1d] font-semibold leading-tight capitalize">
+                  {currentUser?.role ? currentUser.role.replace('_', ' ') : 'Customer'} • Switch
                 </span>
               </div>
-              <img
-                alt={activeRoleInfo.title}
-                className="w-8 h-8 rounded-full object-cover border-2 shadow-sm"
-                style={{ borderColor: activeRoleInfo.color }}
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuCM8Df4ydgQlw7-C3xA3CT7h5C2tQxC6dNe3IJ2enHiQN8G54nMXRGjAfjWl85zOczkZyxCHsoV7BzQeVGFjPk0CPKInV4fw508vliKK3yaslBmnqglVdo0W2Dnmk1FOxrrAOmsErjWgeHW5EEo6-hCF-HQbo-WHrv2Th1zirxjfxcm_SrkOHGyY_fS7CevegmG-7iAe5poB7vxJMjmEi4ZRiLeGCnLTPEUfSg-t8539hbPetZcUuMflw"
-              />
+              <LogIn className="w-3.5 h-3.5 text-[#2D221E]/40 group-hover:text-[#9d3e1d]" />
+            </button>
+
+            {/* Quick RBAC Dropdown Toggle */}
+            <button
+              onClick={() => setShowRoleMenu(!showRoleMenu)}
+              className="p-1.5 ml-1 rounded-lg hover:bg-[#FAF7F2] text-[#6B5851] hover:text-[#2D221E] transition-colors"
+              title="Quick Atelier Role Persona Switcher"
+            >
+              <ChevronDown className="w-3.5 h-3.5" />
             </button>
 
             {/* Persona Switcher Dropdown */}

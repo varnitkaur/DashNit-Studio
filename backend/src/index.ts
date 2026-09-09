@@ -8,11 +8,15 @@ import { CraftCardModel } from './models/CraftCard';
 import { ProductModel } from './models/Product';
 import { RawMaterialModel } from './models/RawMaterial';
 import { LogisticsOrderModel } from './models/LogisticsOrder';
+import { UserModel } from './models/User';
+import { CartModel } from './models/Cart';
 import {
   initialCraftCards,
   mockCatalogProducts,
   mockRawMaterials,
   mockLogisticsOrders,
+  seedUsers,
+  initialCarts,
 } from './seedData';
 
 dotenv.config();
@@ -434,6 +438,31 @@ app.get('/api/v1/orders', async (_req: Request, res: Response) => {
 app.post('/api/v1/orders', async (req: Request, res: Response) => {
   try {
     const orderData = req.body;
+    // Always persist to memory cache for immediate responsiveness across all admin tabs
+    mockLogisticsOrders.unshift(orderData);
+
+    // Auto-generate Craft Cards for each item so artisan staff immediately sees it on the Kanban Board!
+    if (Array.isArray(orderData.items)) {
+      orderData.items.forEach((item: any, idx: number) => {
+        initialCraftCards.unshift({
+          id: orderData.orderId ? `${orderData.orderId}-${idx + 1}` : `DN-${Date.now().toString().slice(-4)}`,
+          stage: 'new_placed',
+          title: item.title,
+          subtitle: orderData.shippingCity ? `${orderData.shippingCity} • Online Storefront` : 'Online Boutique Storefront',
+          type: item.category === 'crochet' ? 'crochet' : item.category === 'wax_melt' ? 'wax_melt' : 'candle',
+          customerName: orderData.customerName || 'Valued Client',
+          customerPhone: orderData.customerPhone || '+91 98765 43210',
+          price: (item.price || 849) * (item.quantity || 1),
+          tag: item.fulfillmentMode === 'ready_to_ship' ? 'Ready to Ship' : 'Made to Order',
+          dueText: 'Due in 4 days',
+          details: {
+            artisan: 'Dashrath M.',
+            giftNote: item.customDetails,
+          },
+        });
+      });
+    }
+
     if (mongoose.connection.readyState === 1) {
       const newOrder = await LogisticsOrderModel.create(orderData);
       return res.status(201).json({ success: true, source: 'mongodb', data: newOrder });
@@ -442,6 +471,275 @@ app.post('/api/v1/orders', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error creating order:', error);
     return res.status(500).json({ success: false, error: 'Failed to create order' });
+  }
+});
+
+app.get('/api/v1/orders/customer/:customerName', async (req: Request, res: Response) => {
+  const { customerName } = req.params;
+  try {
+    if (mongoose.connection.readyState === 1) {
+      const orders = await LogisticsOrderModel.find({
+        customerName: { $regex: new RegExp(customerName, 'i') },
+      }).sort({ createdAt: -1 });
+      return res.json({ success: true, source: 'mongodb', data: orders });
+    }
+    const filtered = mockLogisticsOrders.filter((o) =>
+      o.customerName.toLowerCase().includes(customerName.toLowerCase())
+    );
+    return res.json({ success: true, source: 'memory_echo', data: filtered });
+  } catch (error) {
+    console.error('Error fetching customer orders:', error);
+    return res.status(500).json({ success: false, error: 'Failed to fetch customer orders' });
+  }
+});
+
+/* ==========================================================================
+   ROLE-BASED AUTHENTICATION ENDPOINTS (ADMIN VS CUSTOMER)
+   ========================================================================== */
+
+app.post('/api/v1/auth/login', async (req: Request, res: Response) => {
+  const { email, role, phone } = req.body;
+
+  try {
+    if (mongoose.connection.readyState === 1) {
+      let query: Record<string, any> = {};
+      if (email) query.email = email.toLowerCase().trim();
+      else if (phone) query.phone = phone.trim();
+
+      let user = await UserModel.findOne(query);
+      if (!user && (email || phone)) {
+        // Find in seed users
+        const foundSeed = seedUsers.find(
+          (u) =>
+            (email && u.email.toLowerCase() === email.toLowerCase()) ||
+            (phone && u.phone === phone)
+        );
+        if (foundSeed) {
+          user = await UserModel.create(foundSeed);
+        }
+      }
+
+      if (user) {
+        return res.json({
+          success: true,
+          source: 'mongodb',
+          data: {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            phone: user.phone,
+            role: user.role,
+            avatar: user.avatar,
+            token: `jwt-token-${user.id}-${Date.now()}`,
+          },
+        });
+      }
+    }
+
+    // Fallback authentication using seedUsers list
+    const fallbackUser = seedUsers.find(
+      (u) =>
+        (email && u.email.toLowerCase() === email.toLowerCase()) ||
+        (role && u.role === role) ||
+        (phone && u.phone === phone)
+    );
+
+    if (fallbackUser) {
+      return res.json({
+        success: true,
+        source: 'seed_memory',
+        data: {
+          ...fallbackUser,
+          token: `demo-token-${fallbackUser.id}`,
+        },
+      });
+    }
+
+    // Auto-create customer profile on the fly if not found
+    const newCustomer = {
+      id: `user-cust-${Date.now()}`,
+      name: email ? email.split('@')[0] : 'Valued Client',
+      email: email || 'guest@client.com',
+      phone: phone || '+91 98765 00000',
+      role: role || 'customer',
+      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80',
+    };
+
+    return res.json({
+      success: true,
+      source: 'auto_guest',
+      data: { ...newCustomer, token: `guest-token-${Date.now()}` },
+    });
+  } catch (error) {
+    console.error('Error during login:', error);
+    return res.status(500).json({ success: false, error: 'Login failed' });
+  }
+});
+
+app.post('/api/v1/auth/register', async (req: Request, res: Response) => {
+  const { name, email, phone, role = 'customer' } = req.body;
+
+  if (!name || !email) {
+    return res.status(400).json({ success: false, error: 'Name and email are required' });
+  }
+
+  const newUser = {
+    id: `user-${Date.now()}`,
+    name,
+    email: email.toLowerCase().trim(),
+    phone,
+    role,
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80',
+  };
+
+  try {
+    if (mongoose.connection.readyState === 1) {
+      const created = await UserModel.create(newUser);
+      return res.status(201).json({ success: true, source: 'mongodb', data: created });
+    }
+    return res.status(201).json({ success: true, source: 'memory_echo', data: newUser });
+  } catch (error) {
+    console.error('Error registering user:', error);
+    return res.status(500).json({ success: false, error: 'Registration failed' });
+  }
+});
+
+app.get('/api/v1/auth/users', async (_req: Request, res: Response) => {
+  try {
+    if (mongoose.connection.readyState === 1) {
+      const users = await UserModel.find().sort({ role: 1 });
+      if (users.length > 0) {
+        return res.json({ success: true, source: 'mongodb', data: users });
+      }
+    }
+    return res.json({ success: true, source: 'seed_memory', data: seedUsers });
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    return res.json({ success: true, source: 'seed_fallback', data: seedUsers });
+  }
+});
+
+/* ==========================================================================
+   CUSTOMER CART & REAL-TIME ACTIVITY TRACKING
+   ("Kisi ne add to cart ya order kiya to uska data dikhna chahiye")
+   ========================================================================== */
+
+app.get('/api/v1/cart/:userId', async (req: Request, res: Response) => {
+  const { userId } = req.params;
+
+  try {
+    if (mongoose.connection.readyState === 1) {
+      const cart = await CartModel.findOne({ userId });
+      if (cart) {
+        return res.json({ success: true, source: 'mongodb', data: cart });
+      }
+    }
+    const seedCart = initialCarts.find((c) => c.userId === userId);
+    return res.json({
+      success: true,
+      source: 'memory_echo',
+      data: seedCart || { userId, customerName: 'Guest', items: [], subtotal: 0, updatedAt: new Date().toISOString() },
+    });
+  } catch (error) {
+    console.error('Error fetching cart:', error);
+    return res.status(500).json({ success: false, error: 'Failed to fetch cart' });
+  }
+});
+
+app.post('/api/v1/cart/:userId', async (req: Request, res: Response) => {
+  const { userId } = req.params;
+  const { items, customerName, customerPhone, customerEmail } = req.body;
+
+  const subtotal = Array.isArray(items)
+    ? items.reduce((sum: number, item: any) => sum + (item.price || 0) * (item.quantity || 1), 0)
+    : 0;
+
+  const cartPayload = {
+    userId,
+    customerName: customerName || 'Valued Client',
+    customerPhone,
+    customerEmail,
+    items: items || [],
+    subtotal,
+    updatedAt: new Date(),
+  };
+
+  try {
+    // Update memory fallback state for immediate cross-tab reflection
+    const existingIndex = initialCarts.findIndex((c) => c.userId === userId);
+    if (existingIndex >= 0) {
+      initialCarts[existingIndex] = {
+        ...initialCarts[existingIndex],
+        ...cartPayload,
+        updatedAt: new Date().toISOString(),
+      };
+    } else {
+      initialCarts.unshift({
+        userId,
+        customerName: customerName || 'Valued Client',
+        customerPhone,
+        items: items || [],
+        subtotal,
+        updatedAt: new Date().toISOString(),
+      });
+    }
+
+    if (mongoose.connection.readyState === 1) {
+      const updatedCart = await CartModel.findOneAndUpdate(
+        { userId },
+        { $set: cartPayload },
+        { upsert: true, new: true }
+      );
+      return res.json({ success: true, source: 'mongodb', data: updatedCart });
+    }
+    return res.json({ success: true, source: 'memory_echo', data: cartPayload });
+  } catch (error) {
+    console.error('Error updating cart:', error);
+    return res.status(500).json({ success: false, error: 'Failed to update cart' });
+  }
+});
+
+app.delete('/api/v1/cart/:userId', async (req: Request, res: Response) => {
+  const { userId } = req.params;
+
+  try {
+    // Clear in memory fallback as well
+    const existingIndex = initialCarts.findIndex((c) => c.userId === userId);
+    if (existingIndex >= 0) {
+      initialCarts[existingIndex].items = [];
+      initialCarts[existingIndex].subtotal = 0;
+      initialCarts[existingIndex].updatedAt = new Date().toISOString();
+    }
+
+    if (mongoose.connection.readyState === 1) {
+      await CartModel.findOneAndUpdate(
+        { userId },
+        { $set: { items: [], subtotal: 0, updatedAt: new Date() } }
+      );
+    }
+    return res.json({ success: true, message: 'Cart emptied successfully' });
+  } catch (error) {
+    console.error('Error emptying cart:', error);
+    return res.status(500).json({ success: false, error: 'Failed to empty cart' });
+  }
+});
+
+/**
+ * ADMIN ENDPOINT: Live Customer Cart & Ingestion Activity Monitor
+ * Returns all active customer carts in the database so the atelier manager can see who is currently shopping!
+ */
+app.get('/api/v1/admin/active-carts', async (_req: Request, res: Response) => {
+  try {
+    if (mongoose.connection.readyState === 1) {
+      const carts = await CartModel.find({ 'items.0': { $exists: true } }).sort({ updatedAt: -1 });
+      if (carts.length > 0) {
+        return res.json({ success: true, source: 'mongodb', data: carts });
+      }
+    }
+    return res.json({ success: true, source: 'seed_memory', data: initialCarts });
+  } catch (error) {
+    console.error('Error fetching active carts for admin:', error);
+    return res.json({ success: true, source: 'seed_fallback', data: initialCarts });
   }
 });
 

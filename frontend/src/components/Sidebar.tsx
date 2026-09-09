@@ -118,6 +118,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
           </button>
 
+          <button
+            onClick={() => setActiveTab('admin-cart-activity')}
+            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all text-left ${
+              activeTab === 'admin-cart-activity'
+                ? 'bg-[#fee9e5] text-[#9d3e1d] font-bold shadow-[0_1px_3px_rgba(45,34,30,0.04)]'
+                : 'text-[#56423c] hover:bg-[#F3EDE4] hover:text-[#2D221E]'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-base">🛒</span>
+              <span className="text-[13px]">Live Customer Carts</span>
+            </div>
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#1E6B43]/10 text-[#1E6B43] border border-[#1E6B43]/30">
+              MongoDB
+            </span>
+          </button>
+
           <div className="pt-3 pb-1 border-t border-[#E5DBD0]/70 mt-3">
             <span className="px-3 text-[10px] font-bold uppercase tracking-wider text-[#9C8880]">
               Architecture & Studio
