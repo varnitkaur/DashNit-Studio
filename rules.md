@@ -69,6 +69,8 @@ c:\Users\ASUS\DashNit-Studio\
 ├── tsconfig.json             # TypeScript compiler configuration
 ├── vite.config.ts            # Vite 6 config with @tailwindcss/vite and path aliases
 ├── public/                   # Static assets served as-is (favicons, logos)
+├── server/                   # Express backend microservices
+│   └── index.ts              # Gemini AI Concierge & Operations Express API
 ├── src/
 │   ├── main.tsx              # React DOM root entry point
 │   ├── App.tsx               # Top-level state orchestrator, global modals & routing
@@ -91,6 +93,7 @@ c:\Users\ASUS\DashNit-Studio\
 ### Folder Placement Guidelines
 | File Type | Directory | Rule |
 | :--- | :--- | :--- |
+| **Backend / Server APIs** | `server/` | Express endpoints, AI parser & health checks. |
 | **Domain Interfaces / Types** | `src/types.ts` | All shared data models MUST be declared here. |
 | **Feature Views** | `src/components/` | Large views (e.g. tabs) get dedicated files. |
 | **Reusable Modals** | `src/components/Modals.tsx` | Specialized modal dialogs; ensure clean keyboard escape handling. |

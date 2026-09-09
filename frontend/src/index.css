@@ -1,0 +1,68 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Epilogue", system-ui, sans-serif;
+  --font-headline: "Epilogue", system-ui, sans-serif;
+  --font-body: "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-label: "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-mono: "Space Mono", monospace;
+
+  --color-primary: #9d3e1d;
+  --color-primary-container: #bd5633;
+  --color-on-primary: #ffffff;
+  --color-surface-canvas: #FAF7F2;
+  --color-surface-card: #FFFFFF;
+  --color-surface-subtle: #F3EDE4;
+  --color-surface-hover: #EDE5D8;
+  --color-surface-container: #fee9e5;
+  --color-surface-container-high: #f8e4df;
+  --color-border-soft: #E5DBD0;
+  --color-border-strong: #D3C2B1;
+  --color-text-primary: #2D221E;
+  --color-text-muted: #6B5851;
+  --color-text-tertiary: #9C8880;
+  --color-accent-rose: #E8B4B8;
+  --color-accent-rose-soft: #FDF2F4;
+  --color-status-ready-bg: #EBF6F0;
+  --color-status-ready-text: #1E6B43;
+  --color-status-ready-border: #A3D9BC;
+  --color-status-crafting-bg: #FEF5EA;
+  --color-status-crafting-text: #A35C00;
+  --color-status-crafting-border: #F8CCA0;
+  --color-status-logistics-bg: #EEF5FA;
+  --color-status-logistics-text: #1E5888;
+  --color-status-logistics-border: #B2D3EC;
+  --color-status-alert-bg: #FDF2F2;
+  --color-status-alert-text: #9B2C2C;
+  --color-status-alert-border: #F3B5B5;
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: #FAF7F2;
+  color: #2D221E;
+}
+
+h1, h2, h3, .font-display, .font-headline {
+  font-family: var(--font-display);
+}
+
+.font-mono, .code-font {
+  font-family: var(--font-mono);
+}
+
+/* Custom smooth scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #FAF7F2;
+}
+::-webkit-scrollbar-thumb {
+  background: #D3C2B1;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #9d3e1d;
+}
