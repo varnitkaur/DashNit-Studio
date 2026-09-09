@@ -314,16 +314,42 @@ export const ShippingLabelModal: React.FC<{
   order: LogisticsOrder | null;
   onClose: () => void;
 }> = ({ order, onClose }) => {
+  const [viewMode, setViewMode] = useState<'label' | 'zpl'>('label');
+  const [copiedZpl, setCopiedZpl] = useState(false);
+
   if (!order) return null;
+
+  const rawZplCode = `^XA
+^PW812
+^LL1218
+^FO50,50^A0N,40,40^FD${order.courier || 'DELHIVERY EXPRESS'}^FS
+^FO550,50^A0N,25,25^FDPREPAID PRIORITY^FS
+^FO50,105^GB712,3,3^FS
+^FO50,140^BY3,3,110^BCN,110,Y,N,N^FD${order.awb || 'DEL-99482710'}^FS
+^FO50,290^GB712,2,2^FS
+^FO50,320^A0N,32,32^FDSHIP TO: ${order.customerName}^FS
+^FO50,365^A0N,24,24^FD${order.address}^FS
+^FO50,400^A0N,24,24^FD${order.city}, ${order.state} - ${order.pinCode}^FS
+^FO50,440^A0N,24,24^FDPHONE: ${order.phone}^FS
+^FO50,485^GB712,2,2^FS
+^FO50,515^A0N,28,28^FDORDER: #${order.orderId}  |  WEIGHT: 680g^FS
+^FO50,555^A0N,22,22^FDJAIPUR CRAFT HOUSE UNIT 02  |  FRAGILE GLASS^FS
+^XZ`;
+
+  const handleCopyZpl = () => {
+    navigator.clipboard.writeText(rawZplCode);
+    setCopiedZpl(true);
+    setTimeout(() => setCopiedZpl(false), 2000);
+  };
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-[#E5DBD0] space-y-4">
+      <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-[#E5DBD0] space-y-4 animate-in fade-in zoom-in-95">
         <div className="flex items-center justify-between border-b border-[#F3EDE4] pb-3">
           <div className="flex items-center gap-2">
             <QrCode className="w-5 h-5 text-[#1E5888]" />
             <h3 className="font-['Epilogue'] text-base font-bold text-[#2D221E]">
-              Shiprocket AWB Air Waybill
+              Thermal Courier Shipping Label (4x6)
             </h3>
           </div>
           <button onClick={onClose} className="p-1 rounded-full hover:bg-[#F3EDE4]">
@@ -331,48 +357,92 @@ export const ShippingLabelModal: React.FC<{
           </button>
         </div>
 
-        {/* Printable thermal label preview */}
-        <div className="p-4 rounded-2xl bg-white border-2 border-black space-y-3 font-['Space_Mono'] text-xs text-black">
-          <div className="flex justify-between items-center border-b-2 border-black pb-2">
-            <span className="font-bold text-sm">DELHIVERY DIRECT</span>
-            <span className="text-[10px] font-bold">PREPAID / PRIORITY</span>
-          </div>
-
-          <div className="text-center py-2 border-b border-black">
-            <div className="font-bold text-lg tracking-widest">{order.awb || '#DL-99482710'}</div>
-            {/* Barcode visual lines */}
-            <div className="h-10 w-full flex items-center justify-center gap-1 my-1">
-              {Array.from({ length: 36 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="h-full bg-black"
-                  style={{ width: i % 3 === 0 ? '3px' : '1px' }}
-                ></div>
-              ))}
-            </div>
-            <span className="text-[10px]">ROUTING: JAI/BLR-HUB-04</span>
-          </div>
-
-          <div className="space-y-1 text-[11px] leading-tight">
-            <p><strong>SHIP TO:</strong> {order.customerName}</p>
-            <p>{order.address}</p>
-            <p>{order.city}, {order.state} - {order.pinCode}</p>
-            <p>Phone: {order.phone}</p>
-          </div>
-
-          <div className="border-t border-black pt-1 text-[10px] flex justify-between">
-            <span>ORDER: #{order.orderId}</span>
-            <span>WT: 680g</span>
-          </div>
+        {/* View Mode Toggle */}
+        <div className="flex rounded-xl bg-[#FAF7F2] p-1 border border-[#E5DBD0] text-xs">
+          <button
+            onClick={() => setViewMode('label')}
+            className={`flex-1 py-1.5 rounded-lg font-bold transition-all ${
+              viewMode === 'label'
+                ? 'bg-white shadow-xs text-[#2D221E]'
+                : 'text-[#6B5851] hover:text-[#2D221E]'
+            }`}
+          >
+            Visual Thermal Label
+          </button>
+          <button
+            onClick={() => setViewMode('zpl')}
+            className={`flex-1 py-1.5 rounded-lg font-bold transition-all ${
+              viewMode === 'zpl'
+                ? 'bg-white shadow-xs text-[#2D221E]'
+                : 'text-[#6B5851] hover:text-[#2D221E]'
+            }`}
+          >
+            Raw ZPL (Zebra / TSC)
+          </button>
         </div>
 
-        <button
-          onClick={() => window.print()}
-          className="w-full py-2.5 rounded-xl bg-[#2D221E] text-white text-xs font-bold flex items-center justify-center gap-2"
-        >
-          <Printer className="w-4 h-4" />
-          <span>Print Thermal Label (4x6)</span>
-        </button>
+        {viewMode === 'label' ? (
+          /* Printable visual thermal label preview */
+          <div className="p-4 rounded-2xl bg-white border-2 border-black space-y-3 font-['Space_Mono'] text-xs text-black">
+            <div className="flex justify-between items-center border-b-2 border-black pb-2">
+              <span className="font-bold text-sm uppercase">{order.courier || 'DELHIVERY DIRECT'}</span>
+              <span className="text-[10px] font-bold bg-black text-white px-1.5 py-0.5 rounded-xs">PREPAID / 4x6</span>
+            </div>
+
+            <div className="text-center py-2 border-b border-black">
+              <div className="font-bold text-lg tracking-widest">{order.awb || '#DL-99482710'}</div>
+              {/* Barcode visual lines */}
+              <div className="h-10 w-full flex items-center justify-center gap-1 my-1">
+                {Array.from({ length: 36 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="h-full bg-black"
+                    style={{ width: i % 3 === 0 ? '3px' : '1px' }}
+                  ></div>
+                ))}
+              </div>
+              <span className="text-[10px]">ROUTING: JAI/BLR-HUB-04 • FRAGILE ARTISANAL</span>
+            </div>
+
+            <div className="space-y-1 text-[11px] leading-tight">
+              <p><strong>SHIP TO:</strong> {order.customerName}</p>
+              <p>{order.address}</p>
+              <p>{order.city}, {order.state} - {order.pinCode}</p>
+              <p>Phone: {order.phone}</p>
+            </div>
+
+            <div className="border-t border-black pt-1 text-[10px] flex justify-between">
+              <span>ORDER: #{order.orderId}</span>
+              <span>WT: 680g (Glass Protected)</span>
+            </div>
+          </div>
+        ) : (
+          /* Raw ZPL Code Viewer */
+          <div className="space-y-2">
+            <div className="p-3 rounded-2xl bg-[#2D221E] text-[#A3D9BC] font-['Space_Mono'] text-[11px] leading-tight overflow-x-auto max-h-56">
+              <pre>{rawZplCode}</pre>
+            </div>
+            <div className="flex justify-between items-center text-xs">
+              <span className="text-[11px] text-[#6B5851]">Zebra 203/300 DPI Native</span>
+              <button
+                onClick={handleCopyZpl}
+                className="px-3 py-1 rounded-lg bg-[#FAF7F2] hover:bg-[#F3EDE4] text-[#2D221E] font-bold border border-[#E5DBD0]"
+              >
+                {copiedZpl ? '✔ Copied to Clipboard!' : 'Copy ZPL Code'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="flex gap-2">
+          <button
+            onClick={() => window.print()}
+            className="flex-1 py-2.5 rounded-xl bg-[#2D221E] hover:bg-[#1f1714] text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all"
+          >
+            <Printer className="w-4 h-4" />
+            <span>Print 4x6 Thermal Label</span>
+          </button>
+        </div>
       </div>
     </div>
   );

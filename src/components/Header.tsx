@@ -9,8 +9,13 @@ import {
   Palette,
   Eye,
   SlidersHorizontal,
+  Barcode,
+  Building2,
+  MapPin,
+  Briefcase,
+  Globe,
 } from 'lucide-react';
-import { ActiveNavTab } from '../types';
+import { ActiveNavTab, UserRole, AtelierHub } from '../types';
 
 interface HeaderProps {
   searchQuery: string;
@@ -19,6 +24,14 @@ interface HeaderProps {
   setActiveTab: (tab: ActiveNavTab) => void;
   onOpenNewCommission: () => void;
   totalActiveOrders: number;
+  onOpenAIConcierge?: () => void;
+  onOpenScanner?: () => void;
+  onOpenCorporateGifting?: () => void;
+  onOpenCustomerTracking?: () => void;
+  currentRole?: UserRole;
+  onRoleChange?: (role: UserRole) => void;
+  currentHub?: AtelierHub;
+  onHubChange?: (hub: AtelierHub) => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -28,8 +41,18 @@ export const Header: React.FC<HeaderProps> = ({
   setActiveTab,
   onOpenNewCommission,
   totalActiveOrders,
+  onOpenAIConcierge,
+  onOpenScanner,
+  onOpenCorporateGifting,
+  onOpenCustomerTracking,
+  currentRole = 'atelier_manager',
+  onRoleChange,
+  currentHub = 'jaipur_02',
+  onHubChange,
 }) => {
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showRoleMenu, setShowRoleMenu] = useState(false);
+  const [showHubMenu, setShowHubMenu] = useState(false);
   const [unreadCount, setUnreadCount] = useState(3);
 
   const notifications = [
@@ -67,6 +90,58 @@ export const Header: React.FC<HeaderProps> = ({
     },
   ];
 
+  const roleConfig: Record<UserRole, { title: string; subtitle: string; badge: string; color: string }> = {
+    atelier_manager: {
+      title: 'Nita Sharma',
+      subtitle: 'Atelier Director (Full Access)',
+      badge: 'Director',
+      color: '#9d3e1d',
+    },
+    artisan_crafter: {
+      title: 'Dashrath M.',
+      subtitle: 'Senior Crafter (Floor Queue)',
+      badge: 'Artisan',
+      color: '#A35C00',
+    },
+    qc_packaging: {
+      title: 'Kavita S.',
+      subtitle: 'QC & Packaging Specialist',
+      badge: 'QC Lead',
+      color: '#1E6B43',
+    },
+    logistics_dispatcher: {
+      title: 'Ramesh Patel',
+      subtitle: '3PL Logistics & Dispatcher',
+      badge: 'Logistics',
+      color: '#1E5888',
+    },
+  };
+
+  const activeRoleInfo = roleConfig[currentRole] || roleConfig.atelier_manager;
+
+  const hubConfigs: Record<AtelierHub, { name: string; tag: string; location: string; cap: string }> = {
+    jaipur_02: {
+      name: 'Jaipur Unit 02',
+      tag: 'Bespoke Atelier',
+      location: 'Jaipur, RJ',
+      cap: '42 / 45 Slots',
+    },
+    jaipur_01: {
+      name: 'Jaipur Unit 01',
+      tag: 'Candle Foundry',
+      location: 'Jaipur, RJ',
+      cap: '78 / 100 Slots',
+    },
+    mumbai_hub: {
+      name: 'Mumbai 3PL Hub',
+      tag: 'RTS Center',
+      location: 'Bhiwandi, MH',
+      cap: '120 / 250 Slots',
+    },
+  };
+
+  const activeHubInfo = hubConfigs[currentHub] || hubConfigs.jaipur_02;
+
   return (
     <header className="fixed top-0 w-full h-16 bg-white/95 backdrop-blur-md z-40 border-b border-[#E5DBD0] shadow-[0_1px_8px_rgba(0,0,0,0.03)]">
       <div className="h-16 w-full px-5 flex items-center justify-between">
@@ -92,7 +167,7 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           {/* Search bar */}
-          <div className="relative flex items-center w-72 lg:w-84">
+          <div className="relative flex items-center w-64 lg:w-72">
             <Search className="absolute left-3 text-[#9C8880] w-4 h-4" />
             <input
               className="w-full pl-9 pr-4 py-1.5 rounded-lg bg-[#FAF7F2] border border-transparent focus:border-[#D3C2B1] text-[#2D221E] text-[13px] placeholder:text-[#9C8880] focus:outline-none focus:bg-white transition-all font-['Plus_Jakarta_Sans']"
@@ -111,21 +186,116 @@ export const Header: React.FC<HeaderProps> = ({
             )}
           </div>
 
-          {/* Live Studio Badge */}
-          <div className="hidden xl:flex items-center gap-2 px-3 py-1 rounded-full bg-[#FEF5EA] border border-[#F8CCA0]/60">
-            <span className="w-2 h-2 rounded-full bg-[#bd5633] animate-pulse"></span>
-            <span className="text-[11px] font-semibold text-[#A35C00] tracking-wide font-['Plus_Jakarta_Sans']">
-              Jaipur Studio • Live {totalActiveOrders || 42} In-Queue
-            </span>
+          {/* Multi-Hub Network Switcher */}
+          <div className="relative hidden xl:block">
+            <button
+              onClick={() => setShowHubMenu(!showHubMenu)}
+              className="flex items-center gap-2 px-3 py-1 rounded-full bg-[#FEF5EA] hover:bg-[#FDEEDC] border border-[#F8CCA0]/80 transition-all text-left"
+              title="Click to switch active atelier hub"
+            >
+              <span className="w-2 h-2 rounded-full bg-[#bd5633] animate-pulse"></span>
+              <span className="text-[11px] font-bold text-[#A35C00] tracking-wide font-['Plus_Jakarta_Sans']">
+                {activeHubInfo.name} • {activeHubInfo.cap}
+              </span>
+            </button>
+
+            {showHubMenu && (
+              <div className="absolute left-0 mt-2 w-64 bg-white rounded-2xl shadow-2xl border border-[#E5DBD0] p-2 z-50 animate-in fade-in slide-in-from-top-2">
+                <div className="px-2.5 py-1.5 border-b border-[#F3EDE4] mb-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#6B5851] block">
+                    Atelier Federation Network
+                  </span>
+                  <span className="text-[11px] text-[#9C8880]">
+                    Select active production & dispatch hub
+                  </span>
+                </div>
+                <div className="space-y-1">
+                  {(Object.keys(hubConfigs) as AtelierHub[]).map((h) => {
+                    const info = hubConfigs[h];
+                    const isSelected = currentHub === h;
+                    return (
+                      <button
+                        key={h}
+                        onClick={() => {
+                          onHubChange?.(h);
+                          setShowHubMenu(false);
+                        }}
+                        className={`w-full p-2 rounded-xl text-left flex items-center justify-between text-xs transition-all ${
+                          isSelected
+                            ? 'bg-[#fee9e5] text-[#9d3e1d] font-bold border border-[#9d3e1d]/40'
+                            : 'hover:bg-[#FAF7F2] text-[#2D221E]'
+                        }`}
+                      >
+                        <div>
+                          <div className="font-bold text-xs">{info.name}</div>
+                          <div className="text-[10px] text-[#6B5851]">
+                            {info.tag} • {info.cap}
+                          </div>
+                        </div>
+                        {isSelected && <CheckCircle2 className="w-4 h-4 text-[#9d3e1d]" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Right tools & Profile */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-2.5">
+          {/* Customer Live Track Portal Button */}
+          {onOpenCustomerTracking && (
+            <button
+              onClick={onOpenCustomerTracking}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold bg-[#EBF3F8] hover:bg-[#D5E6F2] text-[#1E5888] transition-all border border-[#1E5888]/20 shadow-2xs active:scale-95"
+              title="Open Public Customer Live Tracking Portal"
+            >
+              <Globe className="w-3.5 h-3.5 text-[#1E5888]" />
+              <span className="hidden sm:inline">Track Portal</span>
+            </button>
+          )}
+
+          {/* Corporate Gifting Button */}
+          {onOpenCorporateGifting && (
+            <button
+              onClick={onOpenCorporateGifting}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold bg-[#FAF7F2] hover:bg-[#F3EDE4] text-[#2D221E] transition-all border border-[#E5DBD0] shadow-2xs active:scale-95"
+              title="Open B2B Bulk Corporate Gifting Engine"
+            >
+              <Briefcase className="w-3.5 h-3.5 text-[#9d3e1d]" />
+              <span className="hidden sm:inline">Corporate</span>
+            </button>
+          )}
+
+          {/* AI Concierge Button */}
+          {onOpenAIConcierge && (
+            <button
+              onClick={onOpenAIConcierge}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold bg-[#fee9e5] hover:bg-[#fedbd5] text-[#9d3e1d] transition-all border border-[#9d3e1d]/30 shadow-xs active:scale-95"
+              title="Gemini AI WhatsApp & Order Ingestion Concierge"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-[#9d3e1d]" />
+              <span>✨ AI Concierge</span>
+            </button>
+          )}
+
+          {/* Barcode / Floor Scanner Button */}
+          {onOpenScanner && (
+            <button
+              onClick={onOpenScanner}
+              className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold bg-[#F3EDE4] hover:bg-[#EDE5D8] text-[#2D221E] transition-all border border-[#E5DBD0] shadow-2xs active:scale-95"
+              title="Open Barcode & Staging Bin Scanner"
+            >
+              <Barcode className="w-3.5 h-3.5 text-[#6B5851]" />
+              <span>Scanner</span>
+            </button>
+          )}
+
           {/* Quick Customizer Toggle button */}
           <button
             onClick={() => setActiveTab('custom-studio')}
-            className={`hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+            className={`hidden lg:flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${
               activeTab === 'custom-studio'
                 ? 'bg-[#9d3e1d] text-white shadow-sm'
                 : 'bg-[#F3EDE4] text-[#2D221E] hover:bg-[#EDE5D8]'
@@ -133,13 +303,13 @@ export const Header: React.FC<HeaderProps> = ({
             title="Open Interactive Custom Studio Configurator"
           >
             <Palette className="w-3.5 h-3.5 text-[#9d3e1d]" />
-            <span>Custom Studio (PRD)</span>
+            <span>Studio</span>
           </button>
 
           {/* Architecture Explorer shortcut */}
           <button
             onClick={() => setActiveTab('architecture')}
-            className={`hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+            className={`hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${
               activeTab === 'architecture'
                 ? 'bg-[#9d3e1d] text-white shadow-sm'
                 : 'bg-[#FAF7F2] text-[#6B5851] hover:bg-[#F3EDE4]'
@@ -228,21 +398,88 @@ export const Header: React.FC<HeaderProps> = ({
 
           <div className="h-6 w-px bg-[#E5DBD0] hidden sm:block"></div>
 
-          {/* Profile badge matching design */}
-          <div className="flex items-center gap-3 pl-1">
-            <div className="flex flex-col text-right hidden md:flex">
-              <span className="text-xs font-semibold text-[#2D221E] leading-tight font-['Plus_Jakarta_Sans']">
-                Nita Sharma
-              </span>
-              <span className="text-[11px] text-[#6B5851] leading-tight font-['Plus_Jakarta_Sans']">
-                Master Artisan / Lead
-              </span>
-            </div>
-            <img
-              alt="Nita Sharma"
-              className="w-8 h-8 rounded-full object-cover border border-[#D3C2B1] shadow-sm"
-              src="https://lh3.googleusercontent.com/aida-public/AB6AXuCM8Df4ydgQlw7-C3xA3CT7h5C2tQxC6dNe3IJ2enHiQN8G54nMXRGjAfjWl85zOczkZyxCHsoV7BzQeVGFjPk0CPKInV4fw508vliKK3yaslBmnqglVdo0W2Dnmk1FOxrrAOmsErjWgeHW5EEo6-hCF-HQbo-WHrv2Th1zirxjfxcm_SrkOHGyY_fS7CevegmG-7iAe5poB7vxJMjmEi4ZRiLeGCnLTPEUfSg-t8539hbPetZcUuMflw"
-            />
+          {/* Interactive RBAC Persona Switcher */}
+          <div className="relative">
+            <button
+              onClick={() => setShowRoleMenu(!showRoleMenu)}
+              className="flex items-center gap-2.5 pl-1 p-1 rounded-2xl hover:bg-[#F3EDE4] transition-all text-left"
+              title="Click to switch atelier role (RBAC)"
+            >
+              <div className="flex flex-col text-right hidden md:flex">
+                <div className="flex items-center justify-end gap-1.5">
+                  <span className="text-xs font-bold text-[#2D221E] leading-tight font-['Plus_Jakarta_Sans']">
+                    {activeRoleInfo.title}
+                  </span>
+                  <span
+                    className="text-[9px] font-extrabold uppercase px-1.5 py-0.2 rounded-md text-white shadow-2xs"
+                    style={{ backgroundColor: activeRoleInfo.color }}
+                  >
+                    {activeRoleInfo.badge}
+                  </span>
+                </div>
+                <span className="text-[10px] text-[#6B5851] leading-tight font-['Plus_Jakarta_Sans']">
+                  {activeRoleInfo.subtitle}
+                </span>
+              </div>
+              <img
+                alt={activeRoleInfo.title}
+                className="w-8 h-8 rounded-full object-cover border-2 shadow-sm"
+                style={{ borderColor: activeRoleInfo.color }}
+                src="https://lh3.googleusercontent.com/aida-public/AB6AXuCM8Df4ydgQlw7-C3xA3CT7h5C2tQxC6dNe3IJ2enHiQN8G54nMXRGjAfjWl85zOczkZyxCHsoV7BzQeVGFjPk0CPKInV4fw508vliKK3yaslBmnqglVdo0W2Dnmk1FOxrrAOmsErjWgeHW5EEo6-hCF-HQbo-WHrv2Th1zirxjfxcm_SrkOHGyY_fS7CevegmG-7iAe5poB7vxJMjmEi4ZRiLeGCnLTPEUfSg-t8539hbPetZcUuMflw"
+              />
+            </button>
+
+            {/* Persona Switcher Dropdown */}
+            {showRoleMenu && (
+              <div className="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-2xl border border-[#E5DBD0] p-2.5 z-50 animate-in fade-in slide-in-from-top-2">
+                <div className="px-2 py-1.5 border-b border-[#F3EDE4] mb-1.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#6B5851] block">
+                    Switch Atelier Persona (RBAC)
+                  </span>
+                  <span className="text-[11px] text-[#9C8880]">
+                    Simulate staff permissions on workshop floor
+                  </span>
+                </div>
+                <div className="space-y-1">
+                  {(Object.keys(roleConfig) as UserRole[]).map((r) => {
+                    const info = roleConfig[r];
+                    const isSelected = currentRole === r;
+                    return (
+                      <button
+                        key={r}
+                        onClick={() => {
+                          onRoleChange?.(r);
+                          setShowRoleMenu(false);
+                        }}
+                        className={`w-full p-2 rounded-xl text-left flex items-center justify-between text-xs transition-all ${
+                          isSelected
+                            ? 'bg-[#fee9e5] border border-[#9d3e1d]/40 font-bold'
+                            : 'hover:bg-[#FAF7F2] text-[#2D221E]'
+                        }`}
+                      >
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold text-[#2D221E]">{info.title}</span>
+                            <span
+                              className="text-[9px] font-extrabold uppercase px-1 rounded text-white"
+                              style={{ backgroundColor: info.color }}
+                            >
+                              {info.badge}
+                            </span>
+                          </div>
+                          <span className="text-[10px] text-[#6B5851] block mt-0.5">
+                            {info.subtitle}
+                          </span>
+                        </div>
+                        {isSelected && (
+                          <CheckCircle2 className="w-4 h-4 text-[#9d3e1d] flex-shrink-0" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

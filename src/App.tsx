@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
 import { CraftingBoard } from './components/CraftingBoard';
@@ -7,6 +7,12 @@ import { OrdersLogistics } from './components/OrdersLogistics';
 import { AnalyticsRevenue } from './components/AnalyticsRevenue';
 import { ArchitectureView } from './components/ArchitectureView';
 import { CustomOrderStudio } from './components/CustomOrderStudio';
+import { AIConciergeModal } from './components/AIConciergeModal';
+import { ScannerWorkbenchModal } from './components/ScannerWorkbenchModal';
+import { GeminiVisionQCModal } from './components/GeminiVisionQCModal';
+import { CustomerTrackingPortalModal } from './components/CustomerTrackingPortalModal';
+import { CorporateGiftingModal } from './components/CorporateGiftingModal';
+import { ArtisanWageLedgerModal } from './components/ArtisanWageLedgerModal';
 import {
   InspectCardModal,
   DailyBatchSheetModal,
@@ -20,27 +26,97 @@ import {
   mockRawMaterials,
   mockLogisticsOrders,
 } from './data/mockData';
-import { ActiveNavTab, CraftCard, CraftStage, LogisticsOrder, RawMaterial } from './types';
+import { ActiveNavTab, CraftCard, CraftStage, LogisticsOrder, RawMaterial, UserRole, AtelierHub } from './types';
+import { getStoredState, saveStoredState } from './utils/storage';
+import { useBarcodeScanner } from './utils/scannerListener';
 import { CheckCircle2 } from 'lucide-react';
 
 export function App() {
   const [activeTab, setActiveTab] = useState<ActiveNavTab>('crafting-queue');
   const [searchQuery, setSearchQuery] = useState('');
+  const [currentRole, setCurrentRole] = useState<UserRole>('atelier_manager');
+  const [currentHub, setCurrentHub] = useState<AtelierHub>(() =>
+    getStoredState<AtelierHub>('current_hub', 'jaipur_02')
+  );
 
-  // Main data states
-  const [craftCards, setCraftCards] = useState<CraftCard[]>(initialCraftCards);
-  const [products, setProducts] = useState(mockCatalogProducts);
-  const [rawMaterials, setRawMaterials] = useState(mockRawMaterials);
-  const [logisticsOrders, setLogisticsOrders] = useState(mockLogisticsOrders);
+  // Persistent main data states
+  const [craftCards, setCraftCards] = useState<CraftCard[]>(() =>
+    getStoredState<CraftCard[]>('craft_cards', initialCraftCards)
+  );
+  const [products, setProducts] = useState(() =>
+    getStoredState('catalog_products', mockCatalogProducts)
+  );
+  const [rawMaterials, setRawMaterials] = useState(() =>
+    getStoredState('raw_materials', mockRawMaterials)
+  );
+  const [logisticsOrders, setLogisticsOrders] = useState(() =>
+    getStoredState('logistics_orders', mockLogisticsOrders)
+  );
+
+  // Sync state to local storage
+  useEffect(() => {
+    saveStoredState('craft_cards', craftCards);
+  }, [craftCards]);
+
+  useEffect(() => {
+    saveStoredState('catalog_products', products);
+  }, [products]);
+
+  useEffect(() => {
+    saveStoredState('raw_materials', rawMaterials);
+  }, [rawMaterials]);
+
+  useEffect(() => {
+    saveStoredState('logistics_orders', logisticsOrders);
+  }, [logisticsOrders]);
+
+  useEffect(() => {
+    saveStoredState('current_hub', currentHub);
+  }, [currentHub]);
 
   // Modals state
   const [inspectCard, setInspectCard] = useState<CraftCard | null>(null);
   const [showBatchSheet, setShowBatchSheet] = useState(false);
   const [showDocs, setShowDocs] = useState(false);
   const [showPOModal, setShowPOModal] = useState(false);
+  const [showAIConcierge, setShowAIConcierge] = useState(false);
+  const [showScannerWorkbench, setShowScannerWorkbench] = useState(false);
+  const [visionQCCard, setVisionQCCard] = useState<CraftCard | null>(null);
+  const [showCustomerTrackModal, setShowCustomerTrackModal] = useState(false);
+  const [showCorporateModal, setShowCorporateModal] = useState(false);
+  const [showWageLedgerModal, setShowWageLedgerModal] = useState(false);
   const [selectedRawForPO, setSelectedRawForPO] = useState<RawMaterial | undefined>(undefined);
   const [selectedOrderForLabel, setSelectedOrderForLabel] = useState<LogisticsOrder | null>(null);
   const [globalToast, setGlobalToast] = useState<string | null>(null);
+
+  // Global physical laser barcode scanner listener
+  useBarcodeScanner((scannedCode) => {
+    setShowScannerWorkbench(true);
+    triggerToast(`Hardware Laser Scanner: Detected barcode "${scannedCode}"`);
+  });
+
+  const handlePassQC = (cardId: string) => {
+    setCraftCards((prev) =>
+      prev.map((c) =>
+        c.id === cardId
+          ? {
+              ...c,
+              tag: 'VISION QC CERTIFIED',
+              details: {
+                ...c.details,
+                qcPassed: true,
+                qcChecks: [
+                  'Surface Smoothness 99% (Gemini Vision)',
+                  'Wick Plumb Centered (<0.5mm deviation)',
+                  'Gold Vinyl Debossing Crisp',
+                  'Presentation & Wax Seal Verified',
+                ],
+              },
+            }
+          : c
+      )
+    );
+  };
 
   const triggerToast = (msg: string) => {
     setGlobalToast(msg);
@@ -98,6 +174,19 @@ export function App() {
     triggerToast(`Triggered batch pour for SKU: ${sku}`);
   };
 
+  // Phase 5: B2B Corporate Gifting Batch Queuing Handler
+  const handleQueueCorporateBatch = (
+    batchCards: CraftCard[],
+    companyName: string,
+    count: number
+  ) => {
+    setCraftCards((prev) => [...batchCards, ...prev]);
+    triggerToast(`B2B Corporate Batch: Queued ${count} units for "${companyName}"!`);
+    setTimeout(() => {
+      setActiveTab('crafting-queue');
+    }, 800);
+  };
+
   const lowStockCount = rawMaterials.filter(
     (m) => m.status === 'low' || m.status === 'critical'
   ).length;
@@ -120,6 +209,17 @@ export function App() {
         setActiveTab={setActiveTab}
         onOpenNewCommission={() => setActiveTab('custom-studio')}
         totalActiveOrders={craftCards.length}
+        onOpenAIConcierge={() => setShowAIConcierge(true)}
+        onOpenScanner={() => setShowScannerWorkbench(true)}
+        currentRole={currentRole}
+        onRoleChange={setCurrentRole}
+        currentHub={currentHub}
+        onHubChange={(hub) => {
+          setCurrentHub(hub);
+          triggerToast(`Switched Atelier Hub to ${hub.toUpperCase()}`);
+        }}
+        onOpenCorporateGifting={() => setShowCorporateModal(true)}
+        onOpenCustomerTracking={() => setShowCustomerTrackModal(true)}
       />
 
       <div className="flex flex-1 pt-16">
@@ -131,6 +231,9 @@ export function App() {
           lowStockCount={lowStockCount}
           readyOrdersCount={logisticsOrders.filter((o) => o.status === 'ready_for_packing' || o.status === 'manifested').length}
           onOpenDocs={() => setShowDocs(true)}
+          onOpenWageLedger={() => setShowWageLedgerModal(true)}
+          onOpenCorporateGifting={() => setShowCorporateModal(true)}
+          onOpenCustomerTracking={() => setShowCustomerTrackModal(true)}
         />
 
         {/* Main Content Viewport */}
@@ -143,6 +246,7 @@ export function App() {
               onOpenBatchSheet={() => setShowBatchSheet(true)}
               onOpenOfflineSlips={() => setShowBatchSheet(true)}
               onInspectCard={(card) => setInspectCard(card)}
+              onOpenVisionQC={(card) => setVisionQCCard(card)}
               searchQuery={searchQuery}
             />
           )}
@@ -217,6 +321,61 @@ export function App() {
       )}
 
       {showDocs && <DocsModal onClose={() => setShowDocs(false)} />}
+
+      {/* Gemini AI Artisan Concierge Modal */}
+      {showAIConcierge && (
+        <AIConciergeModal
+          onClose={() => setShowAIConcierge(false)}
+          onCommissionCreated={handleCommissionCreated}
+        />
+      )}
+
+      {/* Atelier Barcode & QR Scanner Workbench */}
+      {showScannerWorkbench && (
+        <ScannerWorkbenchModal
+          cards={craftCards}
+          onClose={() => setShowScannerWorkbench(false)}
+          onUpdateStage={handleUpdateCardStage}
+          onInspectCard={(card) => setInspectCard(card)}
+          onTriggerToast={triggerToast}
+        />
+      )}
+
+      {/* Gemini Vision Automated QC Surface Auditor */}
+      {visionQCCard && (
+        <GeminiVisionQCModal
+          card={visionQCCard}
+          onClose={() => setVisionQCCard(null)}
+          onPassQC={handlePassQC}
+          onTriggerToast={triggerToast}
+        />
+      )}
+
+      {/* Phase 5: Customer Live Tracking Portal */}
+      {showCustomerTrackModal && (
+        <CustomerTrackingPortalModal
+          cards={craftCards}
+          logisticsOrders={logisticsOrders}
+          onClose={() => setShowCustomerTrackModal(false)}
+        />
+      )}
+
+      {/* Phase 5: B2B Corporate Gifting Engine */}
+      {showCorporateModal && (
+        <CorporateGiftingModal
+          onClose={() => setShowCorporateModal(false)}
+          onQueueCorporateBatch={handleQueueCorporateBatch}
+          onTriggerToast={triggerToast}
+        />
+      )}
+
+      {/* Phase 5: Artisan Piece-Rate Wage & Payroll Ledger */}
+      {showWageLedgerModal && (
+        <ArtisanWageLedgerModal
+          onClose={() => setShowWageLedgerModal(false)}
+          onTriggerToast={triggerToast}
+        />
+      )}
     </div>
   );
 }

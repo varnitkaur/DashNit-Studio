@@ -8,6 +8,9 @@ import {
   Palette,
   MessageSquare,
   BookOpen,
+  Gift,
+  Coins,
+  Compass,
 } from 'lucide-react';
 import { ActiveNavTab } from '../types';
 
@@ -18,6 +21,9 @@ interface SidebarProps {
   lowStockCount: number;
   readyOrdersCount: number;
   onOpenDocs: () => void;
+  onOpenWageLedger?: () => void;
+  onOpenCorporateGifting?: () => void;
+  onOpenCustomerTracking?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -27,6 +33,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   lowStockCount,
   readyOrdersCount,
   onOpenDocs,
+  onOpenWageLedger,
+  onOpenCorporateGifting,
+  onOpenCustomerTracking,
 }) => {
   return (
     <aside className="fixed left-0 top-0 h-full w-64 bg-white z-30 flex flex-col justify-between border-r border-[#E5DBD0] shadow-[0_1px_8px_rgba(0,0,0,0.02)] pt-20 pb-6">
@@ -148,6 +157,57 @@ export const Sidebar: React.FC<SidebarProps> = ({
               PRD
             </span>
           </button>
+
+          <div className="pt-3 pb-1 border-t border-[#E5DBD0]/70 mt-3">
+            <span className="px-3 text-[10px] font-bold uppercase tracking-wider text-[#9C8880]">
+              Phase 5: Scale & Omnichannel
+            </span>
+          </div>
+
+          {onOpenCorporateGifting && (
+            <button
+              onClick={onOpenCorporateGifting}
+              className="w-full flex items-center justify-between px-3 py-2 rounded-xl transition-all text-left text-[#56423c] hover:bg-[#F3EDE4] hover:text-[#2D221E]"
+            >
+              <div className="flex items-center gap-3">
+                <Gift className="w-4 h-4 text-[#A35C00]" />
+                <span className="text-[12px] font-medium">B2B Corporate Engine</span>
+              </div>
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#FEF5EA] text-[#A35C00] border border-[#F8CCA0]/50">
+                Bulk
+              </span>
+            </button>
+          )}
+
+          {onOpenCustomerTracking && (
+            <button
+              onClick={onOpenCustomerTracking}
+              className="w-full flex items-center justify-between px-3 py-2 rounded-xl transition-all text-left text-[#56423c] hover:bg-[#F3EDE4] hover:text-[#2D221E]"
+            >
+              <div className="flex items-center gap-3">
+                <Compass className="w-4 h-4 text-[#1E5888]" />
+                <span className="text-[12px] font-medium">Customer Live Portal</span>
+              </div>
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#EBF3FA] text-[#1E5888] border border-[#BBD5EE]/50">
+                Live
+              </span>
+            </button>
+          )}
+
+          {onOpenWageLedger && (
+            <button
+              onClick={onOpenWageLedger}
+              className="w-full flex items-center justify-between px-3 py-2 rounded-xl transition-all text-left text-[#56423c] hover:bg-[#F3EDE4] hover:text-[#2D221E]"
+            >
+              <div className="flex items-center gap-3">
+                <Coins className="w-4 h-4 text-[#1E6B43]" />
+                <span className="text-[12px] font-medium">Artisan Wage Ledger</span>
+              </div>
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#EBF6F0] text-[#1E6B43] border border-[#A3D9BC]/50">
+                UPI
+              </span>
+            </button>
+          )}
         </nav>
       </div>
 

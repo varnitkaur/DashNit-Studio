@@ -26,6 +26,7 @@ import {
   CheckSquare,
 } from 'lucide-react';
 import { CraftCard, CraftStage } from '../types';
+import { IoTCuringTelemetry } from './IoTCuringTelemetry';
 
 interface CraftingBoardProps {
   cards: CraftCard[];
@@ -34,6 +35,7 @@ interface CraftingBoardProps {
   onOpenBatchSheet: () => void;
   onOpenOfflineSlips: () => void;
   onInspectCard: (card: CraftCard) => void;
+  onOpenVisionQC?: (card: CraftCard) => void;
   searchQuery: string;
 }
 
@@ -46,6 +48,7 @@ export const CraftingBoard: React.FC<CraftingBoardProps> = ({
   onOpenBatchSheet,
   onOpenOfflineSlips,
   onInspectCard,
+  onOpenVisionQC,
   searchQuery,
 }) => {
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
@@ -215,6 +218,9 @@ export const CraftingBoard: React.FC<CraftingBoardProps> = ({
           </div>
         </div>
       </div>
+
+      {/* IoT Curing Room Live Sensor Telemetry Banner */}
+      <IoTCuringTelemetry />
 
       {/* Filter Ribbon & Stage Quick Toggles */}
       <div className="flex flex-wrap items-center justify-between gap-3 p-2.5 rounded-2xl bg-white border border-[#E5DBD0] shadow-sm">
@@ -662,6 +668,18 @@ export const CraftingBoard: React.FC<CraftingBoardProps> = ({
 
                   {/* Shiprocket Label button or Affix AWB */}
                   <div className="pt-1 flex flex-col gap-2">
+                    {onOpenVisionQC && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onOpenVisionQC(card);
+                        }}
+                        className="w-full py-1.5 rounded-xl bg-[#FAF7F2] hover:bg-[#fee9e5] text-[#9d3e1d] text-xs font-bold flex items-center justify-center gap-1.5 transition-all border border-[#E5DBD0] hover:border-[#9d3e1d]/40 shadow-2xs active:scale-95"
+                      >
+                        <Camera className="w-3.5 h-3.5" />
+                        <span>📷 Gemini Vision Surface QC</span>
+                      </button>
+                    )}
                     <button
                       onClick={(e) => {
                         e.stopPropagation();

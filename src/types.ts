@@ -109,3 +109,78 @@ export type ActiveNavTab =
   | 'analytics-and-revenue'
   | 'architecture'
   | 'custom-studio';
+
+export type UserRole =
+  | 'atelier_manager'
+  | 'artisan_crafter'
+  | 'qc_packaging'
+  | 'logistics_dispatcher';
+
+export interface RoleInfo {
+  role: UserRole;
+  title: string;
+  badge: string;
+  avatar: string;
+  description: string;
+}
+
+export interface AICommissionParseResult {
+  customerName: string;
+  customerPhone?: string;
+  craftType: CraftType;
+  title: string;
+  subtitle: string;
+  scentProfile?: string;
+  vinylInscription?: string;
+  yarnPalette?: { name: string; hex: string }[];
+  monogram?: string;
+  giftNote?: string;
+  price: number;
+  urgent: boolean;
+  leadTimeDays: number;
+  confidenceScore: number;
+  aiHarmonyRecommendation?: string;
+}
+
+export type AtelierHub = 'jaipur_02' | 'jaipur_01' | 'mumbai_hub';
+
+export interface AtelierHubInfo {
+  id: AtelierHub;
+  name: string;
+  tagline: string;
+  location: string;
+  activeCapUnits: number;
+  capacityMax: number;
+  status: 'optimal' | 'busy' | 'full';
+  focusArea: string;
+}
+
+export interface CorporateOrderRequest {
+  companyName: string;
+  contactPerson: string;
+  email: string;
+  phone: string;
+  hamperTitle: string;
+  quantity: number;
+  baseUnitPrice: number;
+  discountPercent: number;
+  totalAmount: number;
+  logoInscription: string;
+  fragranceChoice: string;
+  deliveryDate: string;
+  destinations: { city: string; units: number }[];
+}
+
+export interface ArtisanWageRecord {
+  artisanId: string;
+  name: string;
+  role: string;
+  completedUnits: number;
+  breakdown: { item: string; qty: number; rate: number; subtotal: number }[];
+  qcPassRate: number;
+  bonusAmount: number;
+  grossPayout: number;
+  status: 'pending' | 'disbursed';
+}
+
+
